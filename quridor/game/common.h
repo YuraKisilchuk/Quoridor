@@ -14,19 +14,13 @@ namespace quridor
 
     struct BoardPos
     {
-        int x, y;
+        int x = 0, y = 0;
 
         BoardPos() = default;
         BoardPos(int x, int y) : x(x), y(y) {}
 
-        bool operator==(const BoardPos& other) const
-        {
-            return x == other.x && y == other.y;
-        }
-        bool operator!=(const BoardPos& other) const
-        {
-            return x != other.x && y != other.y;
-        }
+        bool operator==(const BoardPos& other) const { return x == other.x && y == other.y; }
+        bool operator!=(const BoardPos& other) const { return x != other.x && y != other.y; }
     };
 
     struct QuridorEvent_Move {};
@@ -45,5 +39,9 @@ namespace quridor
     struct QuridorEvent_WallThirdCell
     {
         std::string cellTag;
+    };
+    struct QuridorEvent_StepAi
+    {
+        bool flag;
     };
 }

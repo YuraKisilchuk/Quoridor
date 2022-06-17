@@ -2,7 +2,7 @@
 
 #include <Onyx/Onyx.h>
 
-#include "game/common.h"
+#include "quridor/game/common.h"
 
 namespace quridor
 {
@@ -17,6 +17,8 @@ namespace quridor
     private:
         quridor_ptr quridor;
         eventManager_ptr eventManager;
+
+        //bool flag = true;
 
     public:
         QuridorListener() = default;
@@ -39,5 +41,6 @@ namespace quridor
         void OnFirstCellPlaced(const QuridorEvent_WallFirstCell& quridor_event);
         void OnSecondCellPlaced(const QuridorEvent_WallSecondCell& quridor_event);
         void OnThirdCellPlaced(const QuridorEvent_WallThirdCell& quridor_event);
+        void OnStepBot(const QuridorEvent_StepAi& quridor_event);
     };
 }

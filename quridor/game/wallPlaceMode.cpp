@@ -2,7 +2,8 @@
 
 #include <Onyx/Onyx.h>
 
-#include "wall.h"
+#include "quridor/game/object/cell.h"
+#include "quridor/game/object/wall.h"
 
 using namespace Onyx;
 
@@ -39,8 +40,10 @@ namespace quridor
             {
                 Cell& cell = board.at(firstCellPos.x).at(firstCellPos.y - 1);
 
-                if (cell.getWallState().north == FREE) cell.Outline(true);
-                else cell.Outline(false);
+                if (cell.getWallState().north == FREE)
+                    cell.Outline(true);
+                else
+                    cell.Outline(false);
             }
         }
         {/// South cell.
@@ -48,8 +51,10 @@ namespace quridor
             {
                 Cell& cell = board.at(firstCellPos.x).at(firstCellPos.y + 1);
 
-                if (cell.getWallState().south == FREE) cell.Outline(true);
-                else cell.Outline(false);
+                if (cell.getWallState().south == FREE)
+                    cell.Outline(true);
+                else
+                    cell.Outline(false);
             }
         }
         {/// West cell.
@@ -57,8 +62,10 @@ namespace quridor
             {
                 Cell& cell = board.at(firstCellPos.x - 1).at(firstCellPos.y);
 
-                if (cell.getWallState().west == FREE) cell.Outline(true);
-                else cell.Outline(false);
+                if (cell.getWallState().west == FREE)
+                    cell.Outline(true);
+                else
+                    cell.Outline(false);
             }
         }
         {/// East cell.
@@ -66,8 +73,10 @@ namespace quridor
             {
                 Cell& cell = board.at(firstCellPos.x + 1).at(firstCellPos.y);
 
-                if (cell.getWallState().east == FREE) cell.Outline(true);
-                else cell.Outline(false);
+                if (cell.getWallState().east == FREE)
+                    cell.Outline(true);
+                else
+                    cell.Outline(false);
             }
         }
     }
@@ -158,10 +167,10 @@ namespace quridor
     {
         if (!SetCellBounds(board)) return std::nullopt;
 
-        board.at(firstCell.pos.x).at(firstCell.pos.y).walls   = firstCell.walls;
-        board.at(secondCell.pos.x).at(secondCell.pos.y).walls = secondCell.walls;
-        board.at(thirdCell.pos.x).at(thirdCell.pos.y).walls   = thirdCell.walls;
-        board.at(forthCell.pos.x).at(forthCell.pos.y).walls   = forthCell.walls;
+        board.at(firstCell.pos.x) .at(firstCell.pos.y).walls   = firstCell.walls;
+        board.at(secondCell.pos.x).at(secondCell.pos.y).walls  = secondCell.walls;
+        board.at(thirdCell.pos.x) .at(thirdCell.pos.y).walls   = thirdCell.walls;
+        board.at(forthCell.pos.x) .at(forthCell.pos.y).walls   = forthCell.walls;
 
         const glm::vec3& firstCellPos = firstCell.GetComponent<ECS::TransformComponent>().Position;
         const glm::vec3& thirdCellPos = thirdCell.GetComponent<ECS::TransformComponent>().Position;
@@ -187,7 +196,7 @@ namespace quridor
                 ? glm::radians(90.f) 
                 : glm::radians(0.f);           
             activeScene->AddSceneEntity(wallEntity);
-            Scene::ModelLoader::LoadModel_ByPath(fmt::format("{}{}", Util::DirUtil::GetEngineModelsDir(), "/static_cube.obj"), meshComp, true);
+            Scene::ModelLoader::LoadModel_ByPath(fmt::format("{}{}", "assets", "/static_cube.obj"), meshComp, true);
         }
 
         return Wall(wallEntity);
@@ -196,30 +205,33 @@ namespace quridor
     bool WallPlaceMode::CheckPlacement(Cell& first, Direction direction)
     {
         BoardPos check;
+        bool flag = false;
         using enum Direction;
         switch (direction)
         {
         case NORTH:
             check = first.pos;
             check.y += 2;
-            return check != first.pos ? false : true;
+            flag = check != first.pos ? false : true;
             break;
         case SOUTH:
             check = first.pos;
             check.y -= 2;
-            return check != first.pos ? false : true;
+            flag = check != first.pos ? false : true;
             break;
         case WEST:
             check = first.pos;
             check.x += 2;
-            return check != first.pos ? false : true;
+            flag = check != first.pos ? false : true;
             break;
         case EAST:
             check = first.pos;
             check.x -= 2;
-            return check != first.pos ? false : true;
+            flag = check != first.pos ? false : true;
             break;
         }
+
+        return flag;
     }
 
     bool WallPlaceMode::SetCellBounds(std::vector<std::vector<Cell>>& board)
@@ -230,10 +242,12 @@ namespace quridor
 
         forthCell = CalculateForthCell(board);
 
-        bool firstFlag = true;
+        bool firstFlag  = true;
         bool secondFlag = true;
-        bool thirdFlag = true;
-        bool forthFlag = true;
+        bool thirdFlag  = true;
+        bool forthFlag  = true;
+
+        bool finalFlag = false;
 
         using enum WalledState;
         using enum WallOrientation;
@@ -244,29 +258,43 @@ namespace quridor
                 secondTempPos.y -= 1;
                 if (secondTempPos == thirdCellPos && wallOrientation == HORIZONTAL)
                 {
-                    if (firstCell.walls.north == FREE) firstCell.walls.north = WALLED;
+                    if (firstCell.walls.north == FREE)
+                        firstCell.walls.north = WALLED;
                     else firstFlag = false;
-                    if (secondCell.walls.north == FREE) secondCell.walls.north = WALLED;
+
+                    if (secondCell.walls.north == FREE)
+                        secondCell.walls.north = WALLED;
                     else secondFlag = false;
-                    if (thirdCell.walls.south == FREE) thirdCell.walls.south = WALLED;
+
+                    if (thirdCell.walls.south == FREE)
+                        thirdCell.walls.south = WALLED;
                     else thirdFlag = false;
-                    if (forthCell.walls.south == FREE) forthCell.walls.south = WALLED;
+
+                    if (forthCell.walls.south == FREE)
+                        forthCell.walls.south = WALLED;
                     else forthFlag = false;
 
-                    return firstFlag && secondFlag && thirdFlag && forthFlag;
+                    finalFlag = firstFlag && secondFlag && thirdFlag && forthFlag;
                 }
                 else if (wallOrientation == HORIZONTAL)
                 {
-                    if (firstCell.walls.south == FREE) firstCell.walls.south = WALLED;
+                    if (firstCell.walls.south == FREE)
+                        firstCell.walls.south = WALLED;
                     else firstFlag = false;
-                    if (secondCell.walls.south == FREE) secondCell.walls.south = WALLED;
+
+                    if (secondCell.walls.south == FREE)
+                        secondCell.walls.south = WALLED;
                     else secondFlag = false;
-                    if (thirdCell.walls.north == FREE) thirdCell.walls.north = WALLED;
+
+                    if (thirdCell.walls.north == FREE)
+                        thirdCell.walls.north = WALLED;
                     else thirdFlag = false;
-                    if (forthCell.walls.north == FREE) forthCell.walls.north = WALLED;
+
+                    if (forthCell.walls.north == FREE)
+                        forthCell.walls.north = WALLED;
                     else forthFlag = false;
 
-                    return firstFlag && secondFlag && thirdFlag && forthFlag;
+                    finalFlag = firstFlag && secondFlag && thirdFlag && forthFlag;
                 }
             }
         }
@@ -277,32 +305,48 @@ namespace quridor
                 secondTempPos.x -= 1;
                 if (secondTempPos == thirdCellPos && wallOrientation == VERTICAL)
                 {
-                    if (firstCell.walls.west == FREE) firstCell.walls.west = WALLED;
+                    if (firstCell.walls.west == FREE)
+                        firstCell.walls.west = WALLED;
                     else firstFlag = false;
-                    if (secondCell.walls.west == FREE) secondCell.walls.west = WALLED;
+
+                    if (secondCell.walls.west == FREE)
+                        secondCell.walls.west = WALLED;
                     else secondFlag = false;
-                    if (thirdCell.walls.east == FREE) thirdCell.walls.east = WALLED;
+
+                    if (thirdCell.walls.east == FREE)
+                        thirdCell.walls.east = WALLED;
                     else thirdFlag = false;
-                    if (forthCell.walls.east == FREE) forthCell.walls.east = WALLED;
+
+                    if (forthCell.walls.east == FREE)
+                        forthCell.walls.east = WALLED;
                     else forthFlag = false;
 
-                    return firstFlag && secondFlag && thirdFlag && forthFlag;
+                    finalFlag = firstFlag && secondFlag && thirdFlag && forthFlag;
                 }
                 else if (wallOrientation == VERTICAL)
                 {
-                    if (firstCell.walls.east == FREE) firstCell.walls.east = WALLED;
+                    if (firstCell.walls.east == FREE)
+                        firstCell.walls.east = WALLED;
                     else firstFlag = false;
-                    if (secondCell.walls.east == FREE) secondCell.walls.east = WALLED;
+
+                    if (secondCell.walls.east == FREE)
+                        secondCell.walls.east = WALLED;
                     else secondFlag = false;
-                    if (thirdCell.walls.west == FREE) thirdCell.walls.west = WALLED;
+
+                    if (thirdCell.walls.west == FREE)
+                        thirdCell.walls.west = WALLED;
                     else thirdFlag = false;
-                    if (forthCell.walls.west == FREE) forthCell.walls.west = WALLED;
+
+                    if (forthCell.walls.west == FREE)
+                        forthCell.walls.west = WALLED;
                     else forthFlag = false;
 
-                    return firstFlag && secondFlag && thirdFlag && forthFlag;
+                    finalFlag = firstFlag && secondFlag && thirdFlag && forthFlag;
                 }
             }
         }
+
+        return finalFlag;
     }
 
     Cell WallPlaceMode::CalculateForthCell(std::vector<std::vector<Cell>>& board)
@@ -314,6 +358,8 @@ namespace quridor
         BoardPos firstTempPos  = firstCellPos;
         BoardPos secondTempPos = secondCellPos;
 
+        Cell toReturn = {};
+
         {
             firstTempPos.y -= 1;
             firstTempPos.x -= 1;
@@ -321,9 +367,8 @@ namespace quridor
             {
                 secondTempPos.x -= 1;
                 if (secondTempPos == thirdCellPos)
-                    return Cell(board.at(thirdCellPos.x).at(thirdCellPos.y + 1));
-                else
-                    return Cell(board.at(thirdCellPos.x + 1).at(thirdCellPos.y));
+                    toReturn = Cell(board.at(thirdCellPos.x).at(thirdCellPos.y + 1));
+                else toReturn = Cell(board.at(thirdCellPos.x + 1).at(thirdCellPos.y));
             }
             else
             {
@@ -335,9 +380,8 @@ namespace quridor
                 {
                     secondTempPos.y += 1;
                     if (secondTempPos == thirdCellPos)
-                        return Cell(board.at(thirdCellPos.x - 1).at(thirdCellPos.y));
-                    else
-                        return Cell(board.at(thirdCellPos.x).at(thirdCellPos.y - 1));
+                        toReturn = Cell(board.at(thirdCellPos.x - 1).at(thirdCellPos.y));
+                    else toReturn = Cell(board.at(thirdCellPos.x).at(thirdCellPos.y - 1));
                 }
             }
         }
@@ -351,9 +395,8 @@ namespace quridor
             {
                 secondTempPos.x += 1;
                 if (secondTempPos == thirdCellPos)
-                    return Cell(board.at(thirdCellPos.x).at(thirdCellPos.y + 1));
-                else
-                    return Cell(board.at(thirdCellPos.x - 1).at(thirdCellPos.y));
+                    toReturn = Cell(board.at(thirdCellPos.x).at(thirdCellPos.y + 1));
+                else toReturn = Cell(board.at(thirdCellPos.x - 1).at(thirdCellPos.y));
             }
             else
             {
@@ -365,11 +408,12 @@ namespace quridor
                 {
                     secondTempPos.y -= 1;
                     if (secondTempPos == thirdCellPos)
-                        return Cell(board.at(thirdCellPos.x + 1).at(thirdCellPos.y));
-                    else
-                        return Cell(board.at(thirdCellPos.x).at(thirdCellPos.y - 1));
+                        toReturn = Cell(board.at(thirdCellPos.x + 1).at(thirdCellPos.y));
+                    else toReturn = Cell(board.at(thirdCellPos.x).at(thirdCellPos.y - 1));
                 }
             }
         }
+
+        return toReturn;
     }
 }

@@ -1,7 +1,8 @@
 #include "quridor_state.h"
 
-#include "common.h"
-#include "wall.h"
+#include "quridor/game/common.h"
+#include "quridor/game/object/wall.h"
+#include "quridor/game/ai/quridor_bot.h"
 
 using namespace Onyx;
 
@@ -11,13 +12,15 @@ namespace quridor
     std::vector<Wall> QuridorState::walls = {};
 
     QuridorState::QuridorState(const dumb_ptr<Scene::OnyxScene>& activeScene, const dumb_ptr<ECS::ECSManager>&
-        ecsManager, const dumb_ptr<Events::EventManager>& eventManager, int numberOfPlayers) :
+        ecsManager, const dumb_ptr<Events::EventManager>& eventManager, int numberOfPlayers, bool withAi) :
         activeScene(activeScene),
         ecsManager(ecsManager),
         eventManager(eventManager),
-        wallMode(activeScene, ecsManager)
+        wallMode(activeScene, ecsManager),
+        withAi(withAi)
     {
-        if (numberOfPlayers > maxPlayers) numberOfPlayers = maxPlayers;
+        if (numberOfPlayers > maxPlayers)
+            numberOfPlayers = maxPlayers;
         players.reserve(numberOfPlayers);
 
         CreateCells();
@@ -26,12 +29,15 @@ namespace quridor
 
     dumb_ptr<Player> QuridorState::CyclePlayer()
     {
-        if (players.size() == 1) return players[playerCounter].get();
+        if (players.size() == 1)
+            return players[playerCounter].get();
 
         ++playerCounter;
-        if (playerCounter >= players.size()) playerCounter = 0;
+        if (playerCounter >= players.size())
+            playerCounter = 0;
         currentPlayer->Outline(false);
-
+        if (players[playerCounter].get()->isAi)
+            stepBot = true;
         return players[playerCounter].get();
     }
 
@@ -41,7 +47,8 @@ namespace quridor
         {
             for (auto& cell : cellRow)
             {
-                if (cell.GetComponent<ECS::TagComponent>().Tag == tag) return cell;
+                if (cell.GetComponent<ECS::TagComponent>().Tag == tag)
+                    return cell;
             }
         }
     }
@@ -53,7 +60,7 @@ namespace quridor
 
         glm::vec3 color = { 0, 0, 1 };
 
-        Direction winDirection;
+        Direction winDirection = Direction::NORTH;
 
         switch (numOfPlayers)
         {
@@ -78,19 +85,19 @@ namespace quridor
             case 1:
                 winDirection = Direction::SOUTH;
                 transformPos = board.at(4).at(0).GetComponent<ECS::TransformComponent>().Position;
-                pos = { 4, 0 };
+                pos   = { 4, 0 };
                 color = { 1, 1, 0 };
                 break;
             case 2:
                 winDirection = Direction::WEST;
                 transformPos = board.at(8).at(4).GetComponent<ECS::TransformComponent>().Position;
-                pos = { 8, 4 };
+                pos   = { 8, 4 };
                 color = { 1, 0, 0 };
                 break;
             case 3:
                 winDirection = Direction::EAST;
                 transformPos = board.at(0).at(4).GetComponent<ECS::TransformComponent>().Position;
-                pos = { 0, 4 };
+                pos   = { 0, 4 };
                 color = { 0, 1, 0 };
                 break;
             }
@@ -109,8 +116,12 @@ namespace quridor
                 activeScene->AddSceneEntity(pawnEntity);
             }
 
+            bool isAi = false;
+            if (withAi)
+                isAi = i > 0;
+
             auto player = std::make_unique<Player>(fmt::format("player{}", i + 1), Pawn(pawnEntity, color, pos),
-                wallsPerPlayer, winDirection);
+                wallsPerPlayer, winDirection, isAi);
             if (i == 0) currentPlayer = player.get();
             board.at(pos.x).at(pos.y).isOccupied = true;
             players.push_back(std::move(player));
@@ -126,9 +137,9 @@ namespace quridor
     void QuridorState::CreateCells()
     {
         constexpr glm::vec3 cellColor = { 0.25f, 0 , 0.1f };
-        constexpr float posY = 1.2f;
+        constexpr float posY    = 1.2f;
         constexpr float padding = 2.f;
-        constexpr float offset = 8.f;
+        constexpr float offset  = 8.f;
 
         constexpr int boardSizeX = 9;
         constexpr int boardSizeY = 9;
@@ -159,11 +170,11 @@ namespace quridor
         }
     }
 
-    bool QuridorState::WaitForMove()
+    void QuridorState::WaitForMove()
     {
         if (checkMovesFlag)
         {
-            ClearCellOutlines();
+            CellOutlines(false);
             currentPlayer->CheckMoves(board);
             checkMovesFlag = false;
         }
@@ -191,7 +202,7 @@ namespace quridor
                     --currentPlayer->wallAmount;
                     walls.push_back(wall.value());
                 }
-                else ClearCellOutlines();
+                else CellOutlines(false);
 
                 wallMode.wallPlaced = true;
                 thirdFlag = false;
@@ -208,7 +219,8 @@ namespace quridor
                 moveFlag        = false;
                 wallMode.modeOn = false;
                 wallModeFlag    = true;
-                return false;
+                cycleFlag       = true;
+                stepBot         = true;
             }
         }
 
@@ -216,38 +228,136 @@ namespace quridor
         {
             {/// Clear occupied cell.
                 const BoardPos& pos = currentPlayer->pawn.pos;
-                auto& cell = board.at(pos.x).at(pos.y);
+                Cell& cell = board.at(pos.x).at(pos.y);
                 cell.isOccupied = false;
                 cell.pawnColor = {};
             }
 
             Cell& cell = GetCellByTag(selectedCellEntity.GetComponent<ECS::TagComponent>().Tag);
-            currentPlayer->SetBoardPosByCell(cell);
-            moveFlag       = false;
-            checkMovesFlag = true;
-            wallPlaced     = false;
-            isGameWon = CheckWinCondition();
-            return false;
-        }
+            
+            double distance = std::hypot(cell.pos.x - currentPlayer->pawn.pos.x, cell.pos.y - currentPlayer->pawn.pos.y);
+            bool isObstacle = distance > 1.5 ? true : false;
 
-        return true;
+            currentPlayer->SetBoardPosByCell(cell);
+            currentTransition = Transition(
+                currentPlayer->pawn.entity,
+                currentPlayer->pawn.entity.GetComponent<ECS::TransformComponent>().Position,
+                cell.entity.GetComponent<ECS::TransformComponent>().Position,
+                isObstacle
+            );
+
+            CellOutlines(false);
+            checkMovesFlag = true;
+            moveFlag       = false;
+            wallPlaced     = false;
+            cycleFlag      = true;  
+            stepBot        = true;
+        }
     }
 
-    void QuridorState::OnUpdate()
+    void QuridorState::Step(double deltaTime)
+    {
+        {/// Clear occupied cell.
+            const BoardPos& pos = currentPlayer->pawn.pos;
+            Cell& cell = board.at(pos.x).at(pos.y);
+            cell.isOccupied = false;
+            cell.pawnColor = {};
+        }
+
+        BoardPos endPos;
+        using enum Direction;
+        switch (currentPlayer->winDirection)
+        {
+        case NORTH:
+            endPos.x = currentPlayer->pawn.pos.x;
+            endPos.y = 0;
+            break;
+        case SOUTH:
+            endPos.x = currentPlayer->pawn.pos.x;
+            endPos.y = board.size() - 1;
+            break;
+        case WEST:
+            endPos.x = 0;
+            endPos.y = currentPlayer->pawn.pos.y;
+            break;
+        case EAST:
+            endPos.x = board.size() - 1;
+            endPos.y = currentPlayer->pawn.pos.y;
+            break;
+        }
+
+        Cell& endCell = board.at(endPos.x).at(endPos.y);
+        Cell& startCell = board.at(currentPlayer->pawn.pos.x).at(currentPlayer->pawn.pos.y);
+        QuridorBot bot(startCell, endCell);
+        auto path = bot.FindShortestPath(board);
+        Cell& nextCell = board.at(path[1].pos.x).at(path[1].pos.y);
+
+        if (path.size() == 2)
+            nextCell = board.at(endCell.pos.x).at(endCell.pos.y);
+
+        //bool isObstacle = nextCell.isCellOccupied();
+
+        //nextCell
+
+        currentPlayer->SetBoardPosByCell(nextCell);
+        currentTransition = Transition(
+            currentPlayer->pawn.entity,
+            currentPlayer->pawn.entity.GetComponent<ECS::TransformComponent>().Position,
+            nextCell.entity.GetComponent<ECS::TransformComponent>().Position,
+            false
+        );
+
+        board.at(nextCell.pos.x).at(nextCell.pos.y).isOccupied = nextCell.isCellOccupied();
+
+        if (currentPlayer->pawn.pos == endCell.pos)
+        {
+            currentPlayer->isWinner = true;
+            stepBot = false;
+        }
+
+        CellOutlines(false);
+        cycleFlag = true;
+    }
+
+    void QuridorState::OnUpdate(double deltaTime)
     {
         if (!isGameWon)
         {
             currentPlayer->Outline(true);
-            if (!WaitForMove())
-                currentPlayer = CyclePlayer();
+
+            if (!currentTransition.isFinished)
+            {
+                checkMovesFlag = false;
+                currentTransition.OnUpdate(deltaTime);
+            }
+            
+            if (!currentPlayer->isAi)
+                WaitForMove();
+            else if (stepBot && currentTransition.isFinished)
+            {
+                stepBot = false;
+                Step(deltaTime);
+            }
+
+            if (cycleFlag)
+            {
+                if (currentTransition.isFinished)
+                {
+                    if (currentPlayer->isWinner) isGameWon = true;
+                    cycleFlag = false;
+                    checkMovesFlag = true;
+                    isGameWon = CheckWinCondition();
+                    if (!isGameWon)
+                        currentPlayer = CyclePlayer();
+                }
+            }    
         }
 
         if (winGameFlag)
         {
             for (auto& player : players)
             {
-                const glm::vec3 color = player->pawn.GetComponent<ECS::ShaderComponent>().shader.properties
-                    .diffuse;
+                const glm::vec3 color = player->pawn.GetComponent<ECS::ShaderComponent>().shader.properties.diffuse;
                 floor.GetComponent<ECS::ShaderComponent>().shader.properties.diffuse = color;
                 if (player->isWinner) break;
             }
@@ -276,7 +386,7 @@ namespace quridor
         return win;
     }
 
-    void QuridorState::ClearCellOutlines()
+    void QuridorState::CellOutlines(bool draw)
     {
         for (auto& cellRow : board)
         {

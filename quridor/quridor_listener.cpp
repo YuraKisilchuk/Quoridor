@@ -23,6 +23,7 @@ namespace quridor
         eventManager->Sink<QuridorEvent_WallFirstCell>() .connect<&QuridorListener::OnFirstCellPlaced>(this);
         eventManager->Sink<QuridorEvent_WallSecondCell>().connect<&QuridorListener::OnSecondCellPlaced>(this);
         eventManager->Sink<QuridorEvent_WallThirdCell>() .connect<&QuridorListener::OnThirdCellPlaced>(this);
+        eventManager->Sink<QuridorEvent_StepAi>()        .connect<&QuridorListener::OnStepBot>(this);
     }
 
     void QuridorListener::OnPlayerMove(const QuridorEvent_Move& qEv)
@@ -33,7 +34,7 @@ namespace quridor
     void QuridorListener::OnWallPlace(const QuridorEvent_WallPlaceMode& qEv)
     {
         quridor->quridorState.wallMode.modeOn = qEv.flag;
-        quridor->quridorState.ClearCellOutlines();
+        quridor->quridorState.CellOutlines(false);
         auto& board = quridor->quridorState.board;
         for (size_t i = 1; i < board.size() - 1; ++i)
         {
@@ -73,6 +74,11 @@ namespace quridor
         wallMode.thirdCellSelected = true;
     }
 
+    void QuridorListener::OnStepBot(const QuridorEvent_StepAi& qEv)
+    {
+        quridor->quridorState.stepBot = qEv.flag;
+    }
+
     void QuridorListener::OnKeyPressed(const Events::KeyEvent_Pressed& kEv)
     {
         auto& eventManager = quridor->eventManager;
@@ -101,11 +107,19 @@ namespace quridor
             }
             break;
         }
+        case S:
+        {
+            eventManager->TriggerEvent<QuridorEvent_StepAi>(true);
+            break;
+        }
         case N:  quridor->InitRepeat(numberOfPlayers); break;
         case F1: quridor->InitRepeat(1);               break;
         case F2: quridor->InitRepeat(2);               break;
         case F3: quridor->InitRepeat(3);               break;
         case F4: quridor->InitRepeat(4);               break;
+        case F6: quridor->InitWithAi(2);               break;
+        case F7: quridor->InitWithAi(3);               break;
+        case F8: quridor->InitWithAi(4);               break;
         }
     }
 
@@ -119,7 +133,7 @@ namespace quridor
         if (mEv.mouseCode != Core::Mouse::Button0) return;
 
         const auto& mouseCoords = quridor->mouseCoords;
-        const Physics::Ray ray = quridor->quridorCamera.camera->CreateRay(mouseCoords.x, mouseCoords.y);
+        const Physics::Ray ray  = quridor->quridorCamera.camera->CreateRay(mouseCoords.x, mouseCoords.y);
         quridor->bullet3Physics->RayTest(ray);
     }
 

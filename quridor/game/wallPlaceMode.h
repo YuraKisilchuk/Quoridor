@@ -2,8 +2,8 @@
 
 #include <Onyx/Onyx.h>
 
-#include "common.h"
-#include "cell.h"
+#include "quridor/game/common.h"
+#include "quridor/game/object/cell.h"
 
 namespace quridor
 {
@@ -18,11 +18,11 @@ namespace quridor
 
     struct WallPlaceMode
     {
-        bool modeOn = false;
-        bool wallPlaced = false;
-        bool firstCellSelected = false;
+        bool modeOn             = false;
+        bool wallPlaced         = false;
+        bool firstCellSelected  = false;
         bool secondCellSelected = false;
-        bool thirdCellSelected = false;
+        bool thirdCellSelected  = false;
 
         Cell firstCell;
         Cell secondCell;
@@ -43,7 +43,6 @@ namespace quridor
         void CalculateFirstStage(std::vector<std::vector<Cell>>& board);
         void CalculateSecondStage(std::vector<std::vector<Cell>>& board);
         std::optional<Wall> CalculateThirdStage(std::vector<std::vector<Cell>>& board);
-
         void ResetWallMode();
 
     private:

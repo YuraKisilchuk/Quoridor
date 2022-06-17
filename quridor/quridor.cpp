@@ -39,7 +39,7 @@ namespace quridor
             activeScene = std::make_unique<Scene::OnyxScene>(ecsManager.get(), eventManager, metricsCollector,
                 bullet3Physics);
             quridorListener = QuridorListener(this);
-            quridorState    = QuridorState(activeScene.get(), ecsManager.get(), eventManager, 2);
+            quridorState    = QuridorState(activeScene.get(), ecsManager.get(), eventManager, 2, false);
 
             SetupCamera();
             SetupScene();
@@ -106,7 +106,7 @@ namespace quridor
 
         activeScene->OnUpdateRuntime(deltaTime);
 
-        quridorState.OnUpdate();
+        quridorState.OnUpdate(deltaTime);
 
         return running;
     }
@@ -135,28 +135,23 @@ namespace quridor
         Scene::EditorCamera& camera)
     {
         cameraController.mouseMoveFlag = inputManager->CheckMouseButton(Core::Mouse::Button1);
-
-        using enum Core::Key;
-        if (inputManager->CheckKey(W)) cameraController.TranslateForward(deltaTime, camera);
-        if (inputManager->CheckKey(S)) cameraController.TranslateBackwards(deltaTime, camera);
-        if (inputManager->CheckKey(A)) cameraController.TranslateLeft(deltaTime, camera);
-        if (inputManager->CheckKey(D)) cameraController.TranslateRight(deltaTime, camera);
-        if (inputManager->CheckKey(Q)) cameraController.TranslateDown(deltaTime, camera);
-        if (inputManager->CheckKey(E)) cameraController.TranslateUp(deltaTime, camera);
-        if (inputManager->CheckKey(LeftShift))
-        {
-            if (inputManager->CheckKey(Space)) cameraController.SetCameraSpeed(10.f);
-            else cameraController.SetCameraSpeed(5.f);
-        }
-        else cameraController.SetCameraSpeed(1.f);
     }
 
     void Quridor::InitRepeat(const int numberOfPlayers)
     {
         activeScene->ClearSceneEntities();
         quridorState.OnDispose();
-        quridorState = QuridorState(activeScene.get(), ecsManager.get(),
-            eventManager, numberOfPlayers);
+        quridorState = QuridorState(activeScene.get(), ecsManager.get(), eventManager, numberOfPlayers, false);
+        SetupCamera();
+        SetupScene();
+        activeScene->OnInitScene();
+    }
+
+    void Quridor::InitWithAi(int numberOfPlayers)
+    {
+        activeScene->ClearSceneEntities();
+        quridorState.OnDispose();
+        quridorState = QuridorState(activeScene.get(), ecsManager.get(), eventManager, numberOfPlayers, true);
         SetupCamera();
         SetupScene();
         activeScene->OnInitScene();

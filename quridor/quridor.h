@@ -3,7 +3,7 @@
 #include <Onyx/Onyx.h>
 
 #include "quridor_listener.h"
-#include "game/quridor_state.h"
+#include "quridor/game/quridor_state.h"
 
 namespace quridor
 {
@@ -56,5 +56,6 @@ namespace quridor
         void HandleInput(const double deltaTime, Onyx::Scene::EditorCameraController& controller,
             Onyx::Scene::EditorCamera& camera);
         void InitRepeat(const int numberOfPlayers);
+        void InitWithAi(int numberOfPlayers);
     };
 }
