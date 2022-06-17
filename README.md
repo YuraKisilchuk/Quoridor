@@ -1,11 +1,7 @@
 # Quoridor
 
----
-
 ## AI
 Was made with Dijkstra's algorithm
-
----
 
 # How to play
 
